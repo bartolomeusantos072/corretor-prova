@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Correção de Gabarito</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <h1>Correção de Gabarito</h1>
+  
+  <video id="camera" autoplay playsinline width="320" height="240"></video>
+  <canvas id="snapshot" width="320" height="240" style="display:none;"></canvas>
+  <button id="capture">Capturar e Processar</button>
+  
+  <script>
+    // 1. Abrir câmera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        document.getElementById('camera').srcObject = stream;
+      });
+
+    document.getElementById('capture').addEventListener('click', async () => {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('snapshot');
+      const ctx = canvas.getContext('2d');
+      
+      // 2. Capturar frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // 3. OCR com Tesseract.js
+      const { data: { text } } = await Tesseract.recognize(canvas, 'por');
+      console.log("Texto OCR:", text);
+
+      // 4. Montar JSON (simulação de parsing)
+      const aluno = {
+        nome: "Maria Silva", // extraído via OCR
+        turma: "3B",         // extraído via OCR
+        data: new Date().toISOString().split("T")[0],
+        respostas: ["A","B","C","D"], // detectado via OpenCV.js ou simulado
+        acertos: 3
+      };
+
+      console.log("JSON final:", aluno);
+
+      // 5. Enviar para Mokapi (exemplo)
+      fetch("https://seu-endpoint-mokapi.com/provas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aluno)
+      })
+      .then(res => res.json())
+      .then(data => console.log("Resposta do servidor:", data))
+      .catch(err => console.error("Erro:", err));
+    });
+  </script>
+</body>
+</html>
