@@ -9,7 +9,8 @@ navigator.mediaDevices.getUserMedia({
   console.error("Erro ao acessar câmera:", err);
 });
 
-document.getElementById('export').addEventListener('click', () => {
+// Função para exportar todos os registros
+function exportarJSON() {
   const registros = localStorage.getItem("provas");
   if (!registros) {
     alert("Nenhum dado salvo ainda.");
@@ -21,38 +22,43 @@ document.getElementById('export').addEventListener('click', () => {
   a.href = url;
   a.download = "provas.json";
   a.click();
-});
+}
 
-document.getElementById('capture').addEventListener('click', async () => {
+// Função para capturar e salvar aluno
+async function capturarAluno() {
   const video = document.getElementById('camera');
   const canvas = document.getElementById('snapshot');
   const ctx = canvas.getContext('2d');
   
-  // Capturar frame
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
-  // OCR com Tesseract.js
   const { data: { text } } = await Tesseract.recognize(canvas, 'por');
   console.log("Texto OCR:", text);
 
-  // Simulação de parsing dos dados
-  const aluno = {
-    nome: "Maria Silva", // OCR pode extrair
-    turma: "3B",         // OCR pode extrair
-    data: new Date().toISOString().split("T")[0],
-    respostas: ["A","B","C","D"], // detectar com OpenCV.js ou simular
-    acertos: 3
-  };
+ const nomeMatch = text.match(/Nome:\s*(.+)/i);
+const turmaMatch = text.match(/Turma:\s*(.+)/i);
+const dataMatch = text.match(/Data:\s*(.+)/i);
 
-  // Mostrar JSON na tela
+const aluno = {
+  nome: nomeMatch ? nomeMatch[1].trim() : "Não identificado",
+  turma: turmaMatch ? turmaMatch[1].trim() : "Não identificado",
+  data: dataMatch ? dataMatch[1].trim() : new Date().toISOString().split("T")[0],
+  respostas: [], // aqui você ainda vai detectar os quadradinhos preenchidos
+  acertos: 0
+};
+
+
   document.getElementById('output').textContent = JSON.stringify(aluno, null, 2);
 
-  // Salvar no LocalStorage
   let registros = JSON.parse(localStorage.getItem("provas")) || [];
   registros.push(aluno);
   localStorage.setItem("provas", JSON.stringify(registros));
 
   console.log("Dados salvos no LocalStorage:", registros);
-});
+}
+
+// Eventos dos botões
+document.getElementById('capture').addEventListener('click', capturarAluno);
+document.getElementById('export').addEventListener('click', exportarJSON);
