@@ -9,6 +9,20 @@ navigator.mediaDevices.getUserMedia({
   console.error("Erro ao acessar câmera:", err);
 });
 
+document.getElementById('export').addEventListener('click', () => {
+  const registros = localStorage.getItem("provas");
+  if (!registros) {
+    alert("Nenhum dado salvo ainda.");
+    return;
+  }
+  const blob = new Blob([registros], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "provas.json";
+  a.click();
+});
+
 document.getElementById('capture').addEventListener('click', async () => {
   const video = document.getElementById('camera');
   const canvas = document.getElementById('snapshot');
