@@ -41,6 +41,8 @@ const gabarito = {
 // =========================
 async function capturarAluno() {
 
+  alert("CLICOU!");
+
   if (!opencvReady) {
     alert("OpenCV ainda está carregando...");
     return;
