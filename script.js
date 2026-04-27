@@ -1,192 +1,205 @@
 /**
- * Variável global para saber se estamos editando uma prova existente
- * -1 significa que é uma prova nova.
+ * ESTADO GLOBAL
  */
 let editandoIndex = -1;
 
 /**
- * Função para renderizar a lista com os botões Editar e Excluir
+ * 1. FUNÇÕES DE UTILIDADE (DOM)
  */
-const renderizarLista = () => {
-    const listaContainer = document.getElementById('listaProvas');
-    if (!listaContainer) return;
 
-    const rawData = localStorage.getItem('prova_ifmg');
-    let provas = JSON.parse(rawData || '[]');
+// Cria o HTML de uma linha de questão individual
+const criarLinhaQuestao = (numero, dados = null) => {
+    const div = document.createElement('div');
+    div.className = "flex items-center gap-4 p-2 border-b hover:bg-gray-50 group transition-all";
+    div.dataset.index = numero; // Atributo auxiliar
     
-    // Garante que 'provas' seja sempre um Array
-    if (!Array.isArray(provas)) {
-        provas = rawData ? [provas] : [];
+    const letras = ['A', 'B', 'C', 'D', 'E'];
+    const valorPadrao = dados ? dados.valor : "0.5";
+    const respostaSalva = dados ? dados.resposta : null;
+
+    div.innerHTML = `
+        <span class="font-bold w-8 text-green-700 numero-exibicao">${numero}.</span>
+        <div class="flex gap-2">
+            ${letras.map(letra => `
+                <label class="flex items-center gap-1 cursor-pointer bg-white border px-2 py-1 rounded hover:bg-green-50 text-sm">
+                    <input type="radio" name="q${numero}" value="${letra}" 
+                           ${respostaSalva === letra ? 'checked' : ''} class="w-4 h-4">
+                    ${letra}
+                </label>
+            `).join('')}
+        </div>
+        <input type="number" step="0.1" class="input-valor border w-16 p-1 rounded ml-auto text-center text-sm focus:ring-1 focus:ring-green-500 outline-none" 
+               value="${valorPadrao}">
+        
+        <button type="button" class="btn-remover-questao text-red-400 hover:text-red-600 ml-2 opacity-0 group-hover:opacity-100 transition-all" title="Excluir questão">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d=" immigration 9l-1-1h-4l-1 1H5v2h10V9h-3.5zM5 11h10v5a2 2 0 01-2 2H7a2 2 0 01-2-2v-5z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    `;
+
+    // Evento para remover esta linha específica
+    div.querySelector('.btn-remover-questao').addEventListener('click', () => {
+        div.remove();
+        renumerarQuestoes();
+    });
+
+    return div;
+};
+
+// Renumera todas as questões na tela para manter a ordem 1, 2, 3...
+const renumerarQuestoes = () => {
+    const linhas = document.querySelectorAll('#grade > div');
+    linhas.forEach((linha, i) => {
+        const novoNum = i + 1;
+        linha.querySelector('.numero-exibicao').textContent = `${novoNum}.`;
+        const inputs = linha.querySelectorAll('input[type="radio"]');
+        inputs.forEach(input => input.name = `q${novoNum}`);
+    });
+    document.getElementById('qtdQuestoes').value = linhas.length;
+};
+
+/**
+ * 2. AÇÕES DA GRADE
+ */
+
+const gerarGradeInicial = (dadosGabarito = null) => {
+    const grade = document.getElementById('grade');
+    const areaGabarito = document.getElementById('areaGabarito');
+    grade.innerHTML = ''; // Limpa atual
+
+    if (dadosGabarito) {
+        // Se estivermos editando uma prova salva
+        dadosGabarito.forEach((q, i) => {
+            grade.appendChild(criarLinhaQuestao(i + 1, q));
+        });
+    } else {
+        // Se for uma geração nova do zero
+        const qtd = parseInt(document.getElementById('qtdQuestoes').value) || 0;
+        for (let i = 1; i <= qtd; i++) {
+            grade.appendChild(criarLinhaQuestao(i));
+        }
+    }
+    areaGabarito.classList.remove('hidden');
+};
+
+const adicionarQuestaoAvulsa = () => {
+    const grade = document.getElementById('grade');
+    const novoNum = grade.querySelectorAll(':scope > div').length + 1;
+    grade.appendChild(criarLinhaQuestao(novoNum));
+    document.getElementById('qtdQuestoes').value = novoNum;
+    document.getElementById('areaGabarito').classList.remove('hidden');
+};
+
+/**
+ * 3. PERSISTÊNCIA (LOCALSTORAGE)
+ */
+
+const salvarNoStorage = () => {
+    const titulo = document.getElementById('titulo').value;
+    if (!titulo) return alert("Por favor, preencha ao menos o título da prova.");
+
+    const linhas = document.querySelectorAll('#grade > div');
+    const gabarito = Array.from(linhas).map((linha, i) => {
+        const num = i + 1;
+        const selecionado = linha.querySelector(`input[name="q${num}"]:checked`);
+        const valor = linha.querySelector('.input-valor').value;
+        return {
+            questao: num,
+            resposta: selecionado ? selecionado.value : null,
+            valor: parseFloat(valor) || 0
+        };
+    });
+
+    const prova = {
+        titulo,
+        assunto: document.getElementById('assunto').value,
+        data: document.getElementById('data').value,
+        gabarito
+    };
+
+    let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
+    if (!Array.isArray(lista)) lista = [lista];
+
+    if (editandoIndex > -1) {
+        lista[editandoIndex] = prova;
+        editandoIndex = -1;
+    } else {
+        lista.push(prova);
     }
 
-    if (provas.length === 0) {
-        listaContainer.innerHTML = '<p class="text-gray-500 italic">Nenhuma prova cadastrada.</p>';
+    localStorage.setItem('prova_ifmg', JSON.stringify(lista));
+    alert("Dados salvos com sucesso!");
+    renderizarListaProvas();
+};
+
+const renderizarListaProvas = () => {
+    const container = document.getElementById('listaProvas');
+    const dados = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
+    const lista = Array.isArray(dados) ? dados : [dados];
+
+    if (lista.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 italic">Nenhuma prova na memória.</p>';
         return;
     }
 
-    listaContainer.innerHTML = provas.map((p, index) => `
-        <div class="bg-gray-50 p-4 rounded border flex justify-between items-center mb-2">
+    container.innerHTML = lista.map((p, i) => `
+        <div class="flex justify-between items-center p-3 bg-gray-50 border rounded-md mb-2">
             <div>
-                <strong class="text-green-700">${p.titulo}</strong>
-                <p class="text-xs text-gray-500">${p.assunto} | ${p.data} | ${p.gabarito.length} questões</p>
+                <span class="font-bold text-green-700">${p.titulo}</span>
+                <span class="text-xs text-gray-500 ml-2">(${p.gabarito.length} questões)</span>
             </div>
             <div class="flex gap-2">
-                <button onclick="window.editarProva(${index})" class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600">
-                    Editar
-                </button>
-                <button onclick="window.excluirProva(${index})" class="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600">
-                    Excluir
-                </button>
+                <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 hover:underline text-sm">Editar</button>
+                <button onclick="window.excluirRegistro(${i})" class="text-red-600 hover:underline text-sm">Excluir</button>
             </div>
         </div>
     `).join('');
 };
 
 /**
- * Função para Editar: Joga os dados de volta para o formulário
+ * 4. FUNÇÕES GLOBAIS (BOTÕES DA LISTA)
  */
-window.editarProva = (index) => {
-    const rawData = localStorage.getItem('prova_ifmg');
-    let provas = JSON.parse(rawData || '[]');
-    if (!Array.isArray(provas)) provas = [provas];
 
-    const prova = provas[index];
-    editandoIndex = index; // Salva qual item estamos editando
+window.iniciarEdicao = (index) => {
+    const dados = JSON.parse(localStorage.getItem('prova_ifmg'));
+    const lista = Array.isArray(dados) ? dados : [dados];
+    const prova = lista[index];
 
-    // Preenche os inputs de cima
+    editandoIndex = index;
     document.getElementById('titulo').value = prova.titulo;
     document.getElementById('assunto').value = prova.assunto;
     document.getElementById('data').value = prova.data;
-    document.getElementById('qtdQuestoes').value = prova.gabarito.length;
-
-    // Gera a grade passando o gabarito salvo
-    gerarGrade(prova.gabarito);
     
-    // Rola para cima para facilitar a edição
+    gerarGradeInicial(prova.gabarito);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-/**
- * Função para Excluir
- */
-window.excluirProva = (index) => {
-    if (!confirm("Deseja excluir esta prova?")) return;
-    const rawData = localStorage.getItem('prova_ifmg');
-    let provas = JSON.parse(rawData || '[]');
-    if (!Array.isArray(provas)) provas = [provas];
-
-    provas.splice(index, 1);
-    localStorage.setItem('prova_ifmg', JSON.stringify(provas));
-    renderizarLista();
-};
-
-/**
- * Gera a grade (pode ser vazia ou com dados de edição)
- */
-const gerarGrade = (dadosEdicao = null) => {
-    const qtdInput = document.getElementById('qtdQuestoes');
-    const qtd = dadosEdicao ? dadosEdicao.length : parseInt(qtdInput.value);
+window.excluirRegistro = (index) => {
+    if (!confirm("Excluir esta prova permanentemente?")) return;
+    let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
+    if (!Array.isArray(lista)) lista = [lista];
     
-    if (!qtd || qtd <= 0) return alert("Digite a quantidade de questões");
-
-    const letras = ['A', 'B', 'C', 'D', 'E'];
-    const valorPadrao = (10 / qtd).toFixed(1);
-    const grade = document.getElementById('grade');
-
-    grade.innerHTML = Array.from({ length: qtd }, (_, i) => {
-        const num = i + 1;
-        const questaoSalva = dadosEdicao ? dadosEdicao[i] : null;
-        const respostaMarcada = questaoSalva ? questaoSalva.resposta : null;
-        const valorQuestao = questaoSalva ? questaoSalva.valor : valorPadrao;
-
-        return `
-            <div class="flex items-center gap-4 p-2 border-b">
-                <span class="font-bold w-8">${num}.</span>
-                <div class="flex gap-2">
-                    ${letras.map(letra => `
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="q${num}" value="${letra}" 
-                            ${respostaMarcada === letra ? 'checked' : ''} class="w-4 h-4"> ${letra}
-                        </label>
-                    `).join('')}
-                </div>
-                <input type="number" step="0.1" id="val${num}" value="${valorQuestao}" 
-                       class="border w-20 p-1 rounded ml-auto text-sm text-center">
-            </div>
-        `;
-    }).join('');
-
-    document.getElementById('areaGabarito').classList.remove('hidden');
-};
-
-/**
- * Salvar Prova (Lógica de Criar ou Atualizar)
- */
-const salvarProva = () => {
-    const titulo = document.getElementById('titulo').value;
-    const qtd = document.querySelectorAll('#grade > div').length;
-
-    if (!titulo) return alert("Preencha o título!");
-
-    const provaParaSalvar = {
-        titulo,
-        assunto: document.getElementById('assunto').value,
-        data: document.getElementById('data').value,
-        gabarito: []
-    };
-
-    // Captura as respostas da grade
-    for (let i = 1; i <= qtd; i++) {
-        const selecionada = document.querySelector(`input[name="q${i}"]:checked`);
-        provaParaSalvar.gabarito.push({
-            questao: i,
-            resposta: selecionada ? selecionada.value : null,
-            valor: parseFloat(document.getElementById(`val${i}`).value) || 0
-        });
-    }
-
-    // LÓGICA DE SALVAMENTO ROBUSTA
-    const rawData = localStorage.getItem('prova_ifmg');
-    let lista = [];
-
-    try {
-        const parsed = JSON.parse(rawData || '[]');
-        // Força ser um array, mesmo que o dado antigo fosse um objeto único
-        lista = Array.isArray(parsed) ? parsed : [parsed];
-    } catch (e) {
-        lista = [];
-    }
-
-    if (editandoIndex > -1 && lista[editandoIndex]) {
-        // MODO EDIÇÃO: Substitui na posição correta
-        lista[editandoIndex] = provaParaSalvar;
-        console.log("Editando item no índice:", editandoIndex);
-    } else {
-        // MODO NOVO: Adiciona ao final
-        lista.push(provaParaSalvar);
-        console.log("Adicionando nova prova");
-    }
-
-    // Salva a lista atualizada
+    lista.splice(index, 1);
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
-    
-    // Reseta o estado global de edição para a próxima prova
-    editandoIndex = -1; 
-    
-    alert("Prova salva com sucesso!");
-    renderizarLista();
-    
-    // Opcional: Limpar campos após salvar
-    document.getElementById('areaGabarito').classList.add('hidden');
-    document.getElementById('titulo').value = '';
+    renderizarListaProvas();
 };
 
-// Eventos Iniciais
+/**
+ * 5. INICIALIZAÇÃO
+ */
 document.addEventListener('DOMContentLoaded', () => {
+    // Listeners
     document.getElementById('gerarGrade').addEventListener('click', () => {
-        editandoIndex = -1; // Ao gerar uma nova grade manual, reseta edição
-        gerarGrade();
+        editandoIndex = -1;
+        gerarGradeInicial();
     });
-    document.getElementById('salvarProva').addEventListener('click', salvarProva);
-    renderizarLista();
+
+    document.getElementById('salvarProva').addEventListener('click', salvarNoStorage);
+    
+    // O botão "Inserir Questão" deve ser criado no seu HTML com este ID:
+    const btnInserir = document.getElementById('inserirQuestao');
+    if (btnInserir) btnInserir.addEventListener('click', adicionarQuestaoAvulsa);
+
+    renderizarListaProvas();
 });
