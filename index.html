@@ -1,24 +1,44 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Correção de Gabarito</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <meta charset="UTF-8">
+    <title>Corretor IFMG - Protótipo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="container">
-    <h1>Correção de Gabarito</h1>
-    <video id="webcam" autoplay playsinline muted></video>
-    <canvas id="snapshot" style="display:none;"></canvas>
-    
-    <button id="capture">Capturar e Processar</button>
-    <button id="export">Exportar JSON</button>
+<body class="bg-gray-100 p-8">
 
-    <h2>Dados capturados</h2>
-    <pre id="output"></pre>
-  </div>
-  <script src="https://docs.opencv.org/4.x/opencv.js"></script>
-  <script src="script.js"></script>
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <h1 class="text-2xl font-bold text-green-700 mb-6">Configurador de Gabarito - IFMG</h1>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <input type="text" id="titulo" placeholder="Título da Prova (ex: Prova 1)" class="border p-2 rounded">
+            <input type="text" id="assunto" placeholder="Assunto (ex: Hardware)" class="border p-2 rounded">
+            <input type="date" id="data" class="border p-2 rounded">
+            <input type="number" id="qtdQuestoes" placeholder="Nº de Questões" class="border p-2 rounded">
+        </div>
+
+        <button onclick="gerarGrade()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            Gerar Grade de Respostas
+        </button>
+
+        <hr class="my-8">
+
+        <div id="areaGabarito" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">Marque as Respostas Corretas</h2>
+            <div id="grade" class="space-y-2"></div>
+            
+            <div class="mt-8 flex gap-4">
+                <button onclick="salvarProva()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    Salvar Gabarito
+                </button>
+                <button onclick="exportarJSON()" class="bg-gray-800 text-white px-6 py-2 rounded hover:bg-black">
+                    Exportar JSON
+                </button>
+            </div>
+        </div>
+    </div>
+
+  
+ <script src="script.js" type="module"></script>
 </body>
 </html>
