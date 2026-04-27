@@ -1,5 +1,9 @@
 let editandoIndex = -1;
+let indexProvaAtual = -1; // Para o Modal de Correção
 
+/**
+ * 1. MANIPULAÇÃO DA GRADE DE QUESTÕES
+ */
 const criarLinhaQuestao = (numero, dados = null) => {
     const div = document.createElement('div');
     div.className = "flex items-center gap-4 p-2 border-b hover:bg-gray-50 group transition-all";
@@ -68,6 +72,9 @@ const adicionarQuestaoAvulsa = () => {
     document.getElementById('areaGabarito').classList.remove('hidden');
 };
 
+/**
+ * 2. PERSISTÊNCIA (LOCALSTORAGE)
+ */
 const salvarNoStorage = () => {
     const tituloInput = document.getElementById('titulo');
     if (!tituloInput.value.trim()) {
@@ -113,100 +120,85 @@ const renderizarListaProvas = () => {
     const lista = Array.isArray(dados) ? dados : [dados];
 
     if (lista.length === 0) {
-        container.innerHTML = '<p class="text-gray-400">Nenhuma prova salva.</p>';
+        container.innerHTML = '<p class="text-gray-400 font-italic">Nenhuma prova salva.</p>';
         return;
     }
 
     container.innerHTML = lista.map((p, i) => `
     <div class="flex justify-between items-center p-3 bg-gray-50 border rounded mb-2">
-        <div><strong>${p.titulo}</strong> <span class="text-xs">(${p.gabarito.length} questões)</span></div>
+        <div><strong>${p.titulo}</strong> <span class="text-xs text-gray-500">(${p.gabarito.length} questões)</span></div>
         <div class="flex gap-2">
-            <button onclick="abrirCorrecao(${i})" class="bg-green-100 text-green-700 px-2 py-1 rounded text-sm hover:bg-green-200">
+            <button onclick="abrirModalCorrecao(${i})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors">
                 Corrigir Aluno
             </button>
-            <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 text-sm">Editar</button>
-            <button onclick="window.excluirRegistro(${i})" class="text-red-600 text-sm">Excluir</button>
+            <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 text-sm font-medium hover:underline">Editar</button>
+            <button onclick="window.excluirRegistro(${i})" class="text-red-600 text-sm font-medium hover:underline">Excluir</button>
         </div>
     </div>
-`).join('');
+    `).join('');
 };
-window.processarAvaliacao = (index) => {
-    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
-    const provaMestre = lista[index];
 
-    // 1. Pegamos os valores dos inputs que o leitor preencheria
-    const ra = document.getElementById('raAluno').value;
-    const dadosQR = document.getElementById('campoLeitor').value;
-
-    // Validação: Não corrige se um dos dois estiver vazio
-    if (!ra || !dadosQR) {
-        alert("Certifique-se de que o RA foi digitado e o QR Code foi lido.");
-        return;
-    }
-
-    // 2. Transformamos a string do QR Code em array (ex: "ABCDE" -> ["A","B","C","D","E"])
-    const respostasAluno = dadosQR.split(""); 
-
-    let acertos = 0;
-    let notaFinal = 0;
-    let detalhes = [];
-
-    // 3. Comparação Mestra
-    provaMestre.gabarito.forEach((questaoMestre, i) => {
-        // i é o índice (0, 1, 2...), respostasAluno[i] pega a letra correspondente
-        const respAluno = respostasAluno[i] || "Vazio"; 
-        const acertou = respAluno === questaoMestre.resposta;
-
-        if (acertou) {
-            acertos++;
-            notaFinal += questaoMestre.valor;
-        }
-
-        detalhes.push({
-            n: questaoMestre.questao,
-            correta: questaoMestre.resposta,
-            aluno: respAluno,
-            status: acertou ? "✅" : "❌"
-        });
-    });
-
-    // 4. Feedback e Limpeza para o próximo aluno
-    console.log(`Aluno RA: ${ra} - Nota: ${notaFinal}`);
-    
-    // Aqui você chamaria uma função para mostrar o resultado na tela
-    alert(`Aluno RA: ${ra}\nAcertos: ${acertos}\nNota Final: ${notaFinal.toFixed(2)}`);
-
-    // Limpa os campos para a próxima leitura
-    document.getElementById('raAluno').value = "";
-    document.getElementById('campoLeitor').value = "";
-    document.getElementById('raAluno').focus(); // Devolve o cursor para o RA
-};
-// Variável para saber qual prova estamos corrigindo dentro do modal
-let indexProvaAtual = -1;
-
+/**
+ * 3. LÓGICA DO MODAL E CORREÇÃO (QR CODE / RA)
+ */
 window.abrirModalCorrecao = (index) => {
     const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
     indexProvaAtual = index;
     
-    // Atualiza o texto do modal
     document.getElementById('nomeProvaModal').textContent = `Prova: ${lista[index].titulo}`;
-    
-    // Mostra o modal
     document.getElementById('modalCorrecao').classList.remove('hidden');
     
-    // Foca no RA automaticamente
     setTimeout(() => document.getElementById('raAluno').focus(), 100);
 };
 
 window.fecharModal = () => {
     document.getElementById('modalCorrecao').classList.add('hidden');
     indexProvaAtual = -1;
-    // Limpa campos
     document.getElementById('raAluno').value = "";
     document.getElementById('campoLeitor').value = "";
     document.getElementById('resultadoRapido').classList.add('hidden');
 };
 
+const processarAvaliacao = () => {
+    if (indexProvaAtual === -1) return;
+
+    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
+    const provaMestre = lista[indexProvaAtual];
+
+    const ra = document.getElementById('raAluno').value;
+    const dadosQR = document.getElementById('campoLeitor').value;
+
+    if (!ra || !dadosQR) {
+        alert("Preencha o RA e use o leitor no campo de QR Code.");
+        return;
+    }
+
+    const respostasAluno = dadosQR.split(""); 
+    let acertos = 0;
+    let notaFinal = 0;
+
+    provaMestre.gabarito.forEach((qMestre, i) => {
+        const respAluno = respostasAluno[i] || "Vazio"; 
+        if (respAluno === qMestre.resposta) {
+            acertos++;
+            notaFinal += qMestre.valor;
+        }
+    });
+
+    // Mostrar Resultado no Modal
+    const areaResult = document.getElementById('resultadoRapido');
+    areaResult.innerHTML = `<p class="text-green-800 font-bold text-lg">Nota do Aluno (RA ${ra}): ${notaFinal.toFixed(2)}</p>`;
+    areaResult.classList.remove('hidden');
+
+    // Limpar para o próximo
+    document.getElementById('raAluno').value = "";
+    document.getElementById('campoLeitor').value = "";
+    document.getElementById('raAluno').focus();
+};
+
+/**
+ * 4. EVENTOS GLOBAIS E INICIALIZAÇÃO
+ */
 window.iniciarEdicao = (index) => {
     const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
     const prova = lista[index];
@@ -215,10 +207,11 @@ window.iniciarEdicao = (index) => {
     document.getElementById('assunto').value = prova.assunto;
     document.getElementById('data').value = prova.data;
     gerarGradeInicial(prova.gabarito);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.excluirRegistro = (index) => {
-    if (!confirm("Excluir esta prova?")) return;
+    if (!confirm("Excluir esta prova permanentemente?")) return;
     let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
     lista.splice(index, 1);
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
@@ -226,14 +219,22 @@ window.excluirRegistro = (index) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const btnGerar = document.getElementById('gerarGrade');
-    if(btnGerar) btnGerar.onclick = () => { editandoIndex = -1; gerarGradeInicial(); };
+    document.getElementById('gerarGrade').onclick = () => { 
+        editandoIndex = -1; 
+        gerarGradeInicial(); 
+    };
 
-    const btnSalvar = document.getElementById('salvarProva');
-    if(btnSalvar) btnSalvar.onclick = salvarNoStorage;
+    document.getElementById('salvarProva').onclick = salvarNoStorage;
+    document.getElementById('inserirQuestao').onclick = adicionarQuestaoAvulsa;
+    
+    // Liga o botão do Modal à função de processar
+    const btnConfirmar = document.getElementById('btnConfirmarCorrecao');
+    if (btnConfirmar) btnConfirmar.onclick = processarAvaliacao;
 
-    const btnInserir = document.getElementById('inserirQuestao');
-    if(btnInserir) btnInserir.onclick = adicionarQuestaoAvulsa;
+    // Detecta "Enter" no campo do leitor para disparar a correção automaticamente
+    document.getElementById('campoLeitor').onkeypress = (e) => {
+        if (e.key === 'Enter') processarAvaliacao();
+    };
 
     renderizarListaProvas();
 });
