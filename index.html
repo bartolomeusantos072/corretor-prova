@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corretor IFMG - Protótipo</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -11,32 +12,33 @@
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h1 class="text-2xl font-bold text-green-700 mb-6">Configurador de Gabarito - IFMG</h1>
             
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <input type="text" id="titulo" placeholder="Título da Prova" class="border p-2 rounded">
-                <input type="text" id="assunto" placeholder="Assunto" class="border p-2 rounded">
-                <input type="date" id="data" class="border p-2 rounded">
-                <input type="number" id="qtdQuestoes" placeholder="Nº de Questões" class="border p-2 rounded">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <input type="text" id="titulo" placeholder="Título da Prova" class="border p-2 rounded outline-none focus:ring-2 focus:ring-green-500">
+                <input type="text" id="assunto" placeholder="Assunto" class="border p-2 rounded outline-none focus:ring-2 focus:ring-green-500">
+                <input type="date" id="data" class="border p-2 rounded outline-none focus:ring-2 focus:ring-green-500">
+                <input type="number" id="qtdQuestoes" placeholder="Nº de Questões (Ex: 10)" class="border p-2 rounded outline-none focus:ring-2 focus:ring-green-500">
             </div>
 
-            <button id="gerarGrade" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button id="gerarGrade" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
                 Gerar Grade Inicial
             </button>
 
             <div id="areaGabarito" class="hidden mt-8 border-t pt-8">
-                <h2 class="text-xl font-semibold mb-4">Marque as Respostas Corretas</h2>
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">Marque as Respostas Corretas</h2>
                 
-                <div id="grade" class="space-y-2"></div>
+                <div id="grade" class="space-y-2 mb-8">
+                    </div>
                 
-                <div class="mt-8 flex flex-wrap gap-4">
-                    <button id="salvarProva" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                <div class="flex flex-wrap gap-4 border-t pt-6">
+                    <button id="salvarProva" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 shadow-md">
                         Salvar Gabarito
                     </button>
                     
-                    <button id="inserirQuestao" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600">
+                    <button id="inserirQuestao" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600 shadow-md">
                         + Inserir Questão
                     </button>
                     
-                    <button id="exportarJSON" class="bg-gray-800 text-white px-6 py-2 rounded hover:bg-black">
+                    <button id="exportarJSON" class="bg-gray-800 text-white px-6 py-2 rounded hover:bg-black shadow-md">
                         Exportar JSON
                     </button>
                 </div>
@@ -45,7 +47,46 @@
 
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Provas Salvas no Sistema</h2>
-            <div id="listaProvas" class="space-y-3"></div>
+            <div id="listaProvas" class="space-y-3">
+                </div>
+        </div>
+    </div>
+
+    <div id="modalCorrecao" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-blue-800">Avaliar Aluno</h3>
+                <button onclick="fecharModal()" class="text-gray-400 hover:text-red-500 text-3xl font-light">&times;</button>
+            </div>
+            
+            <p class="text-sm font-medium text-blue-600 mb-6 bg-blue-50 p-2 rounded" id="nomeProvaModal italic">
+                Prova selecionada: ---
+            </p>
+
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Passo 1: Identificação</label>
+                    <input type="text" id="raAluno" class="w-full border-2 p-3 rounded-lg focus:border-blue-500 outline-none transition-all" placeholder="Digite o RA do Aluno">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Passo 2: Leitura do Cartão</label>
+                    <input type="text" id="campoLeitor" class="w-full border-2 p-3 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 outline-none transition-all" placeholder="Aguardando QR Code...">
+                </div>
+            </div>
+
+            <div id="resultadoRapido" class="mt-6 p-4 rounded-lg bg-green-50 border border-green-200 hidden text-center">
+                <p class="text-green-800 font-bold" id="msgSucesso">Processado com sucesso!</p>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3">
+                <button onclick="fecharModal()" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button id="btnConfirmarCorrecao" class="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 shadow-lg transition-all">
+                    Corrigir Agora
+                </button>
+            </div>
         </div>
     </div>
 

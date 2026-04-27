@@ -118,14 +118,93 @@ const renderizarListaProvas = () => {
     }
 
     container.innerHTML = lista.map((p, i) => `
-        <div class="flex justify-between items-center p-3 bg-gray-50 border rounded mb-2">
-            <div><strong>${p.titulo}</strong> <span class="text-xs">(${p.gabarito.length} questões)</span></div>
-            <div class="flex gap-2">
-                <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 text-sm">Editar</button>
-                <button onclick="window.excluirRegistro(${i})" class="text-red-600 text-sm">Excluir</button>
-            </div>
+    <div class="flex justify-between items-center p-3 bg-gray-50 border rounded mb-2">
+        <div><strong>${p.titulo}</strong> <span class="text-xs">(${p.gabarito.length} questões)</span></div>
+        <div class="flex gap-2">
+            <button onclick="abrirCorrecao(${i})" class="bg-green-100 text-green-700 px-2 py-1 rounded text-sm hover:bg-green-200">
+                Corrigir Aluno
+            </button>
+            <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 text-sm">Editar</button>
+            <button onclick="window.excluirRegistro(${i})" class="text-red-600 text-sm">Excluir</button>
         </div>
-    `).join('');
+    </div>
+`).join('');
+};
+window.processarAvaliacao = (index) => {
+    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
+    const provaMestre = lista[index];
+
+    // 1. Pegamos os valores dos inputs que o leitor preencheria
+    const ra = document.getElementById('raAluno').value;
+    const dadosQR = document.getElementById('campoLeitor').value;
+
+    // Validação: Não corrige se um dos dois estiver vazio
+    if (!ra || !dadosQR) {
+        alert("Certifique-se de que o RA foi digitado e o QR Code foi lido.");
+        return;
+    }
+
+    // 2. Transformamos a string do QR Code em array (ex: "ABCDE" -> ["A","B","C","D","E"])
+    const respostasAluno = dadosQR.split(""); 
+
+    let acertos = 0;
+    let notaFinal = 0;
+    let detalhes = [];
+
+    // 3. Comparação Mestra
+    provaMestre.gabarito.forEach((questaoMestre, i) => {
+        // i é o índice (0, 1, 2...), respostasAluno[i] pega a letra correspondente
+        const respAluno = respostasAluno[i] || "Vazio"; 
+        const acertou = respAluno === questaoMestre.resposta;
+
+        if (acertou) {
+            acertos++;
+            notaFinal += questaoMestre.valor;
+        }
+
+        detalhes.push({
+            n: questaoMestre.questao,
+            correta: questaoMestre.resposta,
+            aluno: respAluno,
+            status: acertou ? "✅" : "❌"
+        });
+    });
+
+    // 4. Feedback e Limpeza para o próximo aluno
+    console.log(`Aluno RA: ${ra} - Nota: ${notaFinal}`);
+    
+    // Aqui você chamaria uma função para mostrar o resultado na tela
+    alert(`Aluno RA: ${ra}\nAcertos: ${acertos}\nNota Final: ${notaFinal.toFixed(2)}`);
+
+    // Limpa os campos para a próxima leitura
+    document.getElementById('raAluno').value = "";
+    document.getElementById('campoLeitor').value = "";
+    document.getElementById('raAluno').focus(); // Devolve o cursor para o RA
+};
+// Variável para saber qual prova estamos corrigindo dentro do modal
+let indexProvaAtual = -1;
+
+window.abrirModalCorrecao = (index) => {
+    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
+    indexProvaAtual = index;
+    
+    // Atualiza o texto do modal
+    document.getElementById('nomeProvaModal').textContent = `Prova: ${lista[index].titulo}`;
+    
+    // Mostra o modal
+    document.getElementById('modalCorrecao').classList.remove('hidden');
+    
+    // Foca no RA automaticamente
+    setTimeout(() => document.getElementById('raAluno').focus(), 100);
+};
+
+window.fecharModal = () => {
+    document.getElementById('modalCorrecao').classList.add('hidden');
+    indexProvaAtual = -1;
+    // Limpa campos
+    document.getElementById('raAluno').value = "";
+    document.getElementById('campoLeitor').value = "";
+    document.getElementById('resultadoRapido').classList.add('hidden');
 };
 
 window.iniciarEdicao = (index) => {
