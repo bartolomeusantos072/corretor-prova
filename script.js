@@ -6,27 +6,40 @@ const renderizarLista = () => {
     const listaProvasContainer = document.getElementById('listaProvas');
     if (!listaProvasContainer) return;
 
-    const provas = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
+    // 1. Buscamos a chave exata que apareceu no seu console: 'prova_ifmg'
+    const dadoBruto = localStorage.getItem('prova_ifmg');
     
-    if (provas.length === 0) {
+    if (!dadoBruto) {
         listaProvasContainer.innerHTML = '<p class="text-gray-500 italic">Nenhuma prova salva ainda.</p>';
         return;
     }
 
-    listaProvasContainer.innerHTML = provas.map((prova, index) => `
-        <div class="flex items-center justify-between p-4 bg-gray-50 border rounded-lg hover:shadow-sm transition-all mb-2">
-            <div>
-                <h3 class="font-bold text-green-800">${prova.titulo || 'Sem título'}</h3>
-                <p class="text-sm text-gray-600">${prova.assunto || 'Sem assunto'} • ${prova.data || 'Sem data'}</p>
-                <p class="text-xs text-blue-600 font-medium">${prova.gabarito.length} questões cadastradas</p>
+    try {
+        const dados = JSON.parse(dadoBruto);
+        
+        // 2. Como seu dado é um objeto único e não um array, 
+        // vamos transformá-lo em array na hora para o .map funcionar
+        const listaDeProvas = Array.isArray(dados) ? dados : [dados];
+
+        listaProvasContainer.innerHTML = listaDeProvas.map((prova, index) => `
+            <div class="flex items-center justify-between p-4 bg-gray-50 border rounded-lg hover:shadow-sm mb-2">
+                <div>
+                    <h3 class="font-bold text-green-800">${prova.titulo || 'Sem título'}</h3>
+                    <p class="text-sm text-gray-600">${prova.assunto || ''} • ${prova.data || ''}</p>
+                    <p class="text-xs text-blue-600 font-medium">${prova.gabarito ? prova.gabarito.length : 0} questões</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.excluirProva('${index}')" class="text-red-600 hover:bg-red-50 px-3 py-1 rounded text-sm">
+                        Excluir
+                    </button>
+                </div>
             </div>
-            <div class="flex gap-2">
-                <button onclick="window.excluirProva(${index})" class="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1 rounded text-sm transition-colors">
-                    Excluir
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
+
+    } catch (e) {
+        console.error("Erro ao ler dados do LocalStorage", e);
+        listaProvasContainer.innerHTML = '<p class="text-red-500">Erro ao carregar dados.</p>';
+    }
 };
 
 /**
