@@ -6,7 +6,7 @@ const renderizarLista = () => {
     const listaProvasContainer = document.getElementById('listaProvas');
     if (!listaProvasContainer) return;
 
-    const provas = JSON.parse(localStorage.getItem('provas_ifmg') || '[]');
+    const provas = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
     
     if (provas.length === 0) {
         listaProvasContainer.innerHTML = '<p class="text-gray-500 italic">Nenhuma prova salva ainda.</p>';
