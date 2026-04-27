@@ -128,39 +128,57 @@ const salvarProva = () => {
 
     if (!titulo) return alert("Preencha o título!");
 
-    const prova = {
+    const provaParaSalvar = {
         titulo,
         assunto: document.getElementById('assunto').value,
         data: document.getElementById('data').value,
         gabarito: []
     };
 
+    // Captura as respostas da grade
     for (let i = 1; i <= qtd; i++) {
         const selecionada = document.querySelector(`input[name="q${i}"]:checked`);
-        prova.gabarito.push({
+        provaParaSalvar.gabarito.push({
             questao: i,
             resposta: selecionada ? selecionada.value : null,
             valor: parseFloat(document.getElementById(`val${i}`).value) || 0
         });
     }
 
-    // Pega a lista do banco
+    // LÓGICA DE SALVAMENTO ROBUSTA
     const rawData = localStorage.getItem('prova_ifmg');
-    let lista = JSON.parse(rawData || '[]');
-    if (!Array.isArray(lista)) lista = rawData ? [lista] : [];
+    let lista = [];
 
-    if (editandoIndex > -1) {
-        // Se estamos editando, substitui o item antigo
-        lista[editandoIndex] = prova;
-        editandoIndex = -1; // Reseta o estado de edição
-    } else {
-        // Se for nova, adiciona ao final
-        lista.push(prova);
+    try {
+        const parsed = JSON.parse(rawData || '[]');
+        // Força ser um array, mesmo que o dado antigo fosse um objeto único
+        lista = Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+        lista = [];
     }
 
+    if (editandoIndex > -1 && lista[editandoIndex]) {
+        // MODO EDIÇÃO: Substitui na posição correta
+        lista[editandoIndex] = provaParaSalvar;
+        console.log("Editando item no índice:", editandoIndex);
+    } else {
+        // MODO NOVO: Adiciona ao final
+        lista.push(provaParaSalvar);
+        console.log("Adicionando nova prova");
+    }
+
+    // Salva a lista atualizada
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
-    alert("Prova salva!");
+    
+    // Reseta o estado global de edição para a próxima prova
+    editandoIndex = -1; 
+    
+    alert("Prova salva com sucesso!");
     renderizarLista();
+    
+    // Opcional: Limpar campos após salvar
+    document.getElementById('areaGabarito').classList.add('hidden');
+    document.getElementById('titulo').value = '';
 };
 
 // Eventos Iniciais
