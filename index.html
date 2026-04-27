@@ -12,28 +12,27 @@
             <h1 class="text-2xl font-bold text-green-700 mb-6">Configurador de Gabarito - IFMG</h1>
             
             <div class="grid grid-cols-2 gap-4 mb-6">
-                <input type="text" id="**titulo**" placeholder="Título da Prova" class="border p-2 rounded">
-                <input type="text" id="**assunto**" placeholder="Assunto" class="border p-2 rounded">
-                <input type="date" id="**data**" class="border p-2 rounded">
-                <input type="number" id="**qtdQuestoes**" placeholder="Nº de Questões" class="border p-2 rounded">
+                <input type="text" id="titulo" placeholder="Título da Prova" class="border p-2 rounded">
+                <input type="text" id="assunto" placeholder="Assunto" class="border p-2 rounded">
+                <input type="date" id="data" class="border p-2 rounded">
+                <input type="number" id="qtdQuestoes" placeholder="Nº de Questões" class="border p-2 rounded">
             </div>
 
-            <button id="**gerarGrade**" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button id="gerarGrade" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
                 Gerar Grade Inicial
             </button>
 
-            <div id="**areaGabarito**" class="hidden mt-8 border-t pt-8">
+            <div id="areaGabarito" class="hidden mt-8 border-t pt-8">
                 <h2 class="text-xl font-semibold mb-4">Marque as Respostas Corretas</h2>
                 
-                <div id="**grade**" class="space-y-2">
-                    </div>
+                <div id="grade" class="space-y-2"></div>
                 
                 <div class="mt-8 flex flex-wrap gap-4">
-                    <button id="**salvarProva**" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    <button id="salvarProva" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
                         Salvar Gabarito
                     </button>
                     
-                    <button id="**inserirQuestao**" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600">
+                    <button id="inserirQuestao" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600">
                         + Inserir Questão
                     </button>
                     
@@ -46,8 +45,7 @@
 
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Provas Salvas no Sistema</h2>
-            <div id="**listaProvas**" class="space-y-3">
-                </div>
+            <div id="listaProvas" class="space-y-3"></div>
         </div>
     </div>
 
