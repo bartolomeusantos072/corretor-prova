@@ -1,92 +1,113 @@
-// script.js
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Seleção corrigida para bater com os IDs do seu HTML
-    const btnGerar = document.getElementById('gerarGrade'); // No HTML era 'gerarGrade'
-    const btnSalvar = document.getElementById('salvarProva'); // No HTML era 'salvarProva'
-    const btnExportar = document.getElementById('exportarJSON'); // No HTML era 'exportarJSON'
-    
+    // Elementos
+    const btnGerar = document.getElementById('gerarGrade');
+    const btnSalvar = document.getElementById('salvarProva');
+    const btnExportar = document.getElementById('exportarJSON');
     const grade = document.getElementById('grade');
     const areaGabarito = document.getElementById('areaGabarito');
+    const listaProvasContainer = document.getElementById('listaProvas');
 
-    const gerarGrade = () => {
-        const qtdInput = document.getElementById('qtdQuestoes');
-        const qtd = parseInt(qtdInput.value);
-
-        if (!qtd || qtd <= 0) {
-            return alert("Digite uma quantidade válida de questões");
+    /**
+     * Atualiza a lista visual de provas salvas no LocalStorage
+     */
+    const renderizarLista = () => {
+        const provas = JSON.parse(localStorage.getItem('provas_ifmg') || '[]');
+        
+        if (provas.length === 0) {
+            listaProvasContainer.innerHTML = '<p class="text-gray-500 italic">Nenhuma prova salva ainda.</p>';
+            return;
         }
+
+        listaProvasContainer.innerHTML = provas.map((prova, index) => `
+            <div class="flex items-center justify-between p-4 bg-gray-50 border rounded-lg hover:shadow-sm transition-shadow">
+                <div>
+                    <h3 class="font-bold text-green-800">${prova.titulo}</h3>
+                    <p class="text-sm text-gray-600">${prova.assunto} • ${prova.data} • ${prova.gabarito.length} questões</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="excluirProva(${index})" class="text-red-500 hover:bg-red-50 p-2 rounded text-sm">Excluir</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    /**
+     * Gera os inputs de rádio e valores
+     */
+    const gerarGrade = () => {
+        const qtd = parseInt(document.getElementById('qtdQuestoes').value);
+        if (!qtd || qtd <= 0) return alert("Informe a quantidade de questões!");
 
         const valorPadrao = (10 / qtd).toFixed(1);
         const letras = ['A', 'B', 'C', 'D', 'E'];
         
-        const htmlQuestoes = Array.from({ length: qtd }, (_, i) => {
-            const numero = i + 1;
-            return `
-                <div class="flex items-center gap-4 p-2 border-b">
-                    <span class="font-bold w-8">${numero}.</span>
-                    <div class="flex gap-2">
-                        ${letras.map(letra => `
-                            <label class="flex items-center gap-1 cursor-pointer">
-                                <input type="radio" name="q${numero}" value="${letra}" class="w-4 h-4"> ${letra}
-                            </label>
-                        `).join('')}
-                    </div>
-                    <input type="number" step="0.1" placeholder="Valor" id="val${numero}" 
-                           class="border w-20 p-1 rounded ml-auto text-sm" value="${valorPadrao}">
+        grade.innerHTML = Array.from({ length: qtd }, (_, i) => `
+            <div class="flex items-center gap-4 p-2 border-b hover:bg-gray-50">
+                <span class="font-bold w-6 text-gray-400">${i + 1}.</span>
+                <div class="flex gap-3">
+                    ${letras.map(letra => `
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name="q${i+1}" value="${letra}" class="w-4 h-4 text-green-600"> ${letra}
+                        </label>
+                    `).join('')}
                 </div>
-            `;
-        }).join('');
+                <input type="number" step="0.1" id="val${i+1}" class="border w-16 p-1 rounded ml-auto text-center" value="${valorPadrao}">
+            </div>
+        `).join('');
 
-        grade.innerHTML = htmlQuestoes;
         areaGabarito.classList.remove('hidden');
     };
 
+    /**
+     * Salva a prova no array do LocalStorage
+     */
     const salvarProva = () => {
-        const questoesElementos = document.querySelectorAll('#grade > div');
-        if (questoesElementos.length === 0) return alert("Gere a grade primeiro!");
+        const titulo = document.getElementById('titulo').value;
+        const assunto = document.getElementById('assunto').value;
+        const data = document.getElementById('data').value;
+        const qtd = document.querySelectorAll('#grade > div').length;
 
-        const prova = {
-            titulo: document.getElementById('titulo').value,
-            assunto: document.getElementById('assunto').value,
-            data: document.getElementById('data').value,
+        if (!titulo) return alert("Dê um título para a prova!");
+
+        const novaProva = {
+            titulo, assunto, data,
             gabarito: []
         };
 
-        questoesElementos.forEach((_, i) => {
-            const numero = i + 1;
-            const selecionada = document.querySelector(`input[name="q${numero}"]:checked`);
-            const valor = document.getElementById(`val${numero}`).value;
-            
-            prova.gabarito.push({
-                questao: numero,
+        for (let i = 1; i <= qtd; i++) {
+            const selecionada = document.querySelector(`input[name="q${i}"]:checked`);
+            novaProva.gabarito.push({
+                questao: i,
                 resposta: selecionada ? selecionada.value : null,
-                valor: parseFloat(valor) || 0
+                valor: parseFloat(document.getElementById(`val${i}`).value) || 0
             });
-        });
+        }
 
-        localStorage.setItem('prova_ifmg', JSON.stringify(prova));
+        // Recupera a lista atual, adiciona a nova e salva de volta
+        const provasExistentes = JSON.parse(localStorage.getItem('provas_ifmg') || '[]');
+        provasExistentes.push(novaProva);
+        localStorage.setItem('provas_ifmg', JSON.stringify(provasExistentes));
+
         alert("Prova salva com sucesso!");
+        renderizarLista(); // Atualiza a lista na tela
     };
 
-    const exportarJSON = () => {
-        const dados = localStorage.getItem('prova_ifmg');
-        if (!dados) return alert("Salve a prova primeiro!");
-        
-        const objetoDados = JSON.parse(dados);
-        const blob = new Blob([dados], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `gabarito_${objetoDados.assunto || 'sem_nome'}.json`;
-        link.click();
-        
-        URL.revokeObjectURL(url);
+    /**
+     * Exclui uma prova específica (Função Global para o botão funcionar)
+     */
+    window.excluirProva = (index) => {
+        if (!confirm("Deseja realmente excluir esta prova?")) return;
+        const provas = JSON.parse(localStorage.getItem('provas_ifmg') || '[]');
+        provas.splice(index, 1);
+        localStorage.setItem('provas_ifmg', JSON.stringify(provas));
+        renderizarLista();
     };
 
-    // Listeners com verificação de existência
-    if (btnGerar) btnGerar.addEventListener('click', gerarGrade);
-    if (btnSalvar) btnSalvar.addEventListener('click', salvarProva);
-    if (btnExportar) btnExportar.addEventListener('click', exportarJSON);
+    // Eventos
+    btnGerar.addEventListener('click', gerarGrade);
+    btnSalvar.addEventListener('click', salvarProva);
+    
+    // Carrega a lista ao abrir a página
+    renderizarLista();
 });
