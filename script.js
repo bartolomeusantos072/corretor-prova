@@ -10,7 +10,7 @@ const renderizarLista = () => {
     const dadoBruto = localStorage.getItem('prova_ifmg');
     
     if (!dadoBruto) {
-        listaProvasContainer.innerHTML = '<p class="text-gray-500 italic">Nenhuma prova salva ainda.</p>';
+        listaProvasContainer.innerHTML = '<p class="text-gray-500 italic">NenhumA prova salva ainda.</p>';
         return;
     }
 
