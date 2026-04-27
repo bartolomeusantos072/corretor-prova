@@ -1,16 +1,14 @@
-// Aguarda o DOM carregar para garantir que os elementos existam
+// script.js
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Seleção de elementos constantes
-    const btnGerar = document.getElementById('btnGerar');
-    const btnSalvar = document.getElementById('btnSalvar');
-    const btnExportar = document.getElementById('btnExportar');
+    // Seleção corrigida para bater com os IDs do seu HTML
+    const btnGerar = document.getElementById('gerarGrade'); // No HTML era 'gerarGrade'
+    const btnSalvar = document.getElementById('salvarProva'); // No HTML era 'salvarProva'
+    const btnExportar = document.getElementById('exportarJSON'); // No HTML era 'exportarJSON'
+    
     const grade = document.getElementById('grade');
     const areaGabarito = document.getElementById('areaGabarito');
 
-    /**
-     * Gera a grade de questões de forma otimizada
-     */
     const gerarGrade = () => {
         const qtdInput = document.getElementById('qtdQuestoes');
         const qtd = parseInt(qtdInput.value);
@@ -22,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const valorPadrao = (10 / qtd).toFixed(1);
         const letras = ['A', 'B', 'C', 'D', 'E'];
         
-        // Criamos um array de strings para injetar no DOM de uma vez só (melhor performance)
         const htmlQuestoes = Array.from({ length: qtd }, (_, i) => {
             const numero = i + 1;
             return `
@@ -45,12 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
         areaGabarito.classList.remove('hidden');
     };
 
-    /**
-     * Salva os dados no LocalStorage
-     */
     const salvarProva = () => {
-        const qtd = document.querySelectorAll('#grade > div').length;
-        
+        const questoesElementos = document.querySelectorAll('#grade > div');
+        if (questoesElementos.length === 0) return alert("Gere a grade primeiro!");
+
         const prova = {
             titulo: document.getElementById('titulo').value,
             assunto: document.getElementById('assunto').value,
@@ -58,24 +53,22 @@ document.addEventListener('DOMContentLoaded', () => {
             gabarito: []
         };
 
-        for (let i = 1; i <= qtd; i++) {
-            const selecionada = document.querySelector(`input[name="q${i}"]:checked`);
-            const valor = document.getElementById(`val${i}`).value;
+        questoesElementos.forEach((_, i) => {
+            const numero = i + 1;
+            const selecionada = document.querySelector(`input[name="q${numero}"]:checked`);
+            const valor = document.getElementById(`val${numero}`).value;
             
             prova.gabarito.push({
-                questao: i,
+                questao: numero,
                 resposta: selecionada ? selecionada.value : null,
                 valor: parseFloat(valor) || 0
             });
-        }
+        });
 
         localStorage.setItem('prova_ifmg', JSON.stringify(prova));
         alert("Prova salva com sucesso!");
     };
 
-    /**
-     * Exporta o arquivo JSON
-     */
     const exportarJSON = () => {
         const dados = localStorage.getItem('prova_ifmg');
         if (!dados) return alert("Salve a prova primeiro!");
@@ -89,10 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
         link.download = `gabarito_${objetoDados.assunto || 'sem_nome'}.json`;
         link.click();
         
-        URL.revokeObjectURL(url); // Limpa a memória
+        URL.revokeObjectURL(url);
     };
 
-    // Atribuição dos Event Listeners (O "HTML feliz")
+    // Listeners com verificação de existência
     if (btnGerar) btnGerar.addEventListener('click', gerarGrade);
     if (btnSalvar) btnSalvar.addEventListener('click', salvarProva);
     if (btnExportar) btnExportar.addEventListener('click', exportarJSON);
