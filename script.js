@@ -193,101 +193,39 @@ window.excluirRegistro = (index) => {
 
 // --- 6. MOTOR DE PROCESSAMENTO DE IMAGEM (REESCRITO PARA CANVAS) ---
 
-const processarGabarito = () => {
+
+const lerTextoDaImagem = async () => {
     const video = document.getElementById('videoScan');
     const canvas = document.getElementById('canvasPreview');
     const campoLeitor = document.getElementById('campoLeitor');
-    const msg = document.getElementById('msgSucesso');
     const ctx = canvas.getContext('2d');
 
-    // 1. "Bate a foto": Congela o frame atual do vídeo no canvas
+    // 1. Tira a foto
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Feedback visual: Esconde vídeo e mostra a foto tirada
-    video.classList.add('hidden');
-    canvas.classList.remove('hidden');
+    campoLeitor.value = "Lendo texto... aguarde.";
 
-    // 2. Prepara o OpenCV para ler o Canvas
-    let src = cv.imread(canvas);
-    let gray = new cv.Mat();
-    let thresh = new cv.Mat();
-    
-    // 3. Pré-processamento (Cinza + Filtro para ignorar sombras e brilho)
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-    cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+    // 2. Tesseract processa a imagem do canvas
+    try {
+        const resultado = await Tesseract.recognize(
+            canvas,
+            'por', // Idioma Português
+            { logger: m => console.log(m) } // Log de progresso no console
+        );
 
-    // 4. Localiza a maior forma retangular (o Gabarito)
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
-    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-    let maiorContorno = null;
-    let maxArea = 0;
-    for (let i = 0; i < contours.size(); ++i) {
-        let cnt = contours.get(i);
-        let area = cv.contourArea(cnt);
-        if (area > maxArea) { maxArea = area; maiorContorno = cnt; }
-    }
-
-    if (maiorContorno && maxArea > 10000) {
-        let rect = cv.boundingRect(maiorContorno);
-        let roi = thresh.roi(rect); 
-
-        // Puxa informações da prova atual para saber quantas questões ler
-        const lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
-        const provaAtiva = lista[indexProvaAtual];
-        const numQ = provaAtiva.gabarito.length;
+        // 3. Exibe o texto extraído no campo
+        campoLeitor.value = resultado.data.text.trim();
         
-        let lidas = [];
-        let notaFinal = 0;
-        const colunas = ['A', 'B', 'C', 'D', 'E'];
-
-        // 5. Varredura matemática da grade
-        for (let q = 0; q < numQ; q++) {
-            let melhor = "?";
-            let maxPreto = 0;
-
-            for (let c = 0; c < 5; c++) {
-                let cellW = roi.cols / 5;
-                let cellH = roi.rows / numQ;
-                let cellRect = new cv.Rect(cellW * c, cellH * q, cellW, cellH);
-                let cell = roi.roi(cellRect);
-                
-                let contagem = cv.countNonZero(cell);
-                // Se a bolinha tiver mais que 15% de preenchimento, é um "X"
-                if (contagem > maxPreto && contagem > (cellW * cellH * 0.15)) {
-                    maxPreto = contagem;
-                    melhor = colunas[c];
-                }
-                cell.delete();
-            }
-            lidas.push(melhor);
-
-            // 6. Comparação com o gabarito salvo
-            if (melhor === provaAtiva.gabarito[q].resposta) {
-                notaFinal += provaAtiva.gabarito[q].valor;
-            }
-        }
-
-        // Exibe o resultado e a nota
-        campoLeitor.value = lidas.join(" ");
-        msg.innerHTML = `✅ Correção Concluída! Nota: <b>${notaFinal.toFixed(2)}</b>`;
+        document.getElementById('msgSucesso').textContent = "Texto extraído com sucesso!";
         document.getElementById('resultadoRapido').classList.remove('hidden');
-        
-        roi.delete();
-    } else {
-        alert("Não foi possível detectar o gabarito. Alinhe o papel na guia verde.");
-        // Volta para o vídeo se falhar
-        video.classList.remove('hidden');
-        canvas.classList.add('hidden');
+    } catch (e) {
+        campoLeitor.value = "Erro ao ler imagem.";
+        console.error(e);
     }
-
-    // Limpeza de memória
-    src.delete(); gray.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
 };
 
-// Vincula ao botão
-document.getElementById('btnConfirmarCorrecao').onclick = processarGabarito;
+// Vincula ao seu botão
+document.getElementById('btnConfirmarCorrecao').onclick = lerTextoDaImagem;
 
