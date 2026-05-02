@@ -54,42 +54,41 @@
     </div>
 
     <div id="modalCorrecao" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-xl font-bold text-blue-800">Avaliar Aluno</h3>
-                <button onclick="fecharModal()" class="text-gray-400 hover:text-red-500 text-3xl font-light">&times;</button>
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 class="text-xl font-bold text-blue-800">Avaliar Aluno</h3>
+            <button onclick="fecharModal()" class="text-gray-400 hover:text-red-500 text-3xl">&times;</button>
+        </div>
+        
+        <p id="nomeProvaModal" class="text-sm font-medium text-blue-600 mb-4 bg-blue-50 p-2 rounded">
+            Prova: ---
+        </p>
+
+        <div class="space-y-4">
+            <div class="relative w-full h-48 bg-black rounded-lg overflow-hidden border-2 border-gray-300">
+                <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+                <div class="absolute inset-0 border-2 border-green-500 opacity-30 pointer-events-none m-4"></div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase">Passo 1: Identificação</label>
+                <input type="text" id="raAluno" class="w-full border-2 p-2 rounded-lg outline-none focus:border-blue-500" placeholder="Digite o RA">
             </div>
             
-            <p class="text-sm font-medium text-blue-600 mb-6 bg-blue-50 p-2 rounded" id="nomeProvaModal italic">
-                Prova selecionada: ---
-            </p>
-
-            <div class="space-y-5">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Passo 1: Identificação</label>
-                    <input type="text" id="raAluno" class="w-full border-2 p-3 rounded-lg focus:border-blue-500 outline-none transition-all" placeholder="Digite o RA do Aluno">
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Passo 2: Leitura do Cartão</label>
-                    <input type="text" id="campoLeitor" class="w-full border-2 p-3 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 outline-none transition-all" placeholder="Aguardando QR Code...">
-                </div>
-            </div>
-
-            <div id="resultadoRapido" class="mt-6 p-4 rounded-lg bg-green-50 border border-green-200 hidden text-center">
-                <p class="text-green-800 font-bold" id="msgSucesso">Processado com sucesso!</p>
-            </div>
-
-            <div class="mt-8 flex justify-end gap-3">
-                <button onclick="fecharModal()" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    Cancelar
-                </button>
-                <button id="btnConfirmarCorrecao" class="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 shadow-lg transition-all">
-                    Corrigir Agora
-                </button>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase">Passo 2: Resultado da Leitura</label>
+                <input type="text" id="campoLeitor" class="w-full border-2 p-2 rounded-lg bg-gray-50 outline-none" placeholder="O resultado aparecerá aqui...">
             </div>
         </div>
+
+        <div id="resultadoRapido" class="mt-4 p-3 rounded-lg bg-green-50 hidden text-center"></div>
+
+        <div class="mt-6 flex justify-end gap-3">
+            <button onclick="fecharModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Fechar</button>
+            <button id="btnConfirmarCorrecao" class="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800">Processar Leitura</button>
+        </div>
     </div>
+</div>
 
     <script src="script.js"></script>
 </body>

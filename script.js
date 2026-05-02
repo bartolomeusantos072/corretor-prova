@@ -1,12 +1,17 @@
+// --- VARIÁVEIS DE ESTADO ---
 let editandoIndex = -1;
-let indexProvaAtual = -1; // Para o Modal de Correção
+let indexProvaAtual = -1;
+let streamWebcam = null;
+
+// --- 1. UTILITÁRIOS DE INTERFACE ---
 
 const atualizarTextoBotaoSalvar = () => {
     const btnSalvar = document.getElementById('salvarProva');
-    if (!btnSalvar) return; // Segurança contra null
+    if (!btnSalvar) return;
 
     if (editandoIndex > -1) {
         btnSalvar.textContent = "Salvar Alterações";
+        // Usa remove/add para evitar erros se a classe não existir
         btnSalvar.classList.remove('bg-blue-600');
         btnSalvar.classList.add('bg-amber-600');
     } else {
@@ -15,9 +20,26 @@ const atualizarTextoBotaoSalvar = () => {
         btnSalvar.classList.add('bg-blue-600');
     }
 };
-/**
- * 1. MANIPULAÇÃO DA GRADE DE QUESTÕES
- */
+
+const limparFormulario = () => {
+    document.getElementById('titulo').value = "";
+    document.getElementById('assunto').value = "";
+    document.getElementById('data').value = "";
+    document.getElementById('qtdQuestoes').value = "";
+    document.getElementById('valorTotalProva').value = "";
+    
+    const grade = document.getElementById('grade');
+    if (grade) grade.innerHTML = '';
+    
+    const areaGabarito = document.getElementById('areaGabarito');
+    if (areaGabarito) areaGabarito.classList.add('hidden');
+    
+    editandoIndex = -1;
+    atualizarTextoBotaoSalvar();
+};
+
+// --- 2. MANIPULAÇÃO DA GRADE ---
+
 const criarLinhaQuestao = (numero, dados = null) => {
     const div = document.createElement('div');
     div.className = "flex items-center gap-4 p-2 border-b hover:bg-gray-50 group transition-all";
@@ -39,16 +61,15 @@ const criarLinhaQuestao = (numero, dados = null) => {
         </div>
         <input type="number" step="0.1" class="input-valor border w-16 p-1 rounded ml-auto text-center text-sm focus:ring-1 focus:ring-green-500 outline-none" 
                value="${valorPadrao}">
-        
-        <button type="button" class="btn-remover-linha text-lg text-red-400 hover:text-red-600 ml-2 opacity-0 group-hover:opacity-100 transition-all" title="Remover esta questão">
+        <button type="button" class="btn-remover-linha text-lg text-red-400 hover:text-red-600 ml-2 opacity-0 group-hover:opacity-100 transition-all">
             🗑️
         </button>
     `;
 
-    div.querySelector('.btn-remover-linha').addEventListener('click', () => {
+    div.querySelector('.btn-remover-linha').onclick = () => {
         div.remove();
         renumerarQuestoes();
-    });
+    };
 
     return div;
 };
@@ -58,66 +79,23 @@ const renumerarQuestoes = () => {
     linhas.forEach((linha, i) => {
         const novoNum = i + 1;
         linha.querySelector('.numero-exibicao').textContent = `${novoNum}.`;
-        const inputs = linha.querySelectorAll('input[type="radio"]');
-        inputs.forEach(input => input.name = `q${novoNum}`);
+        linha.querySelectorAll('input[type="radio"]').forEach(inp => inp.name = `q${novoNum}`);
     });
     document.getElementById('qtdQuestoes').value = linhas.length;
 };
 
-document.getElementById('gerarGrade').onclick = () => {
-    editandoIndex = -1;
-    atualizarTextoBotaoSalvar();
-    
-    const grade = document.getElementById('grade');
-    grade.innerHTML = '';
-    
-    const qtd = parseInt(document.getElementById('qtdQuestoes').value) || 0;
-    const valorTotal = parseFloat(document.getElementById('valorTotalProva').value) || 0;
-    
-    // Cálculo do valor individual
-    const valorCada = qtd > 0 ? (valorTotal / qtd).toFixed(2) : 0;
+// --- 3. PERSISTÊNCIA (LOCALSTORAGE) ---
 
-    if (qtd <= 0) {
-        alert("Informe a quantidade de questões.");
-        return;
-    }
-
-    for (let i = 1; i <= qtd; i++) {
-        // Passamos o valor calculado para a função que cria a linha
-        grade.appendChild(criarLinhaQuestao(i, { valor: valorCada }));
-    }
-    
-    document.getElementById('areaGabarito').classList.remove('hidden');
-};
-
-const adicionarQuestaoAvulsa = () => {
-    const grade = document.getElementById('grade');
-    const novoNum = grade.children.length + 1;
-    grade.appendChild(criarLinhaQuestao(novoNum));
-    document.getElementById('qtdQuestoes').value = novoNum;
-    document.getElementById('areaGabarito').classList.remove('hidden');
-};
-
-/**
- * 2. PERSISTÊNCIA (LOCALSTORAGE)
- */
 const salvarNoStorage = () => {
     const tituloInput = document.getElementById('titulo');
-    
-    // Validação inicial
-    if (!tituloInput || !tituloInput.value.trim()) {
-        alert("Por favor, dê um título à prova.");
-        return;
-    }
+    if (!tituloInput.value.trim()) return alert("Por favor, dê um título à prova.");
 
     const linhas = document.querySelectorAll('#grade > div');
     const gabarito = Array.from(linhas).map((linha, i) => {
         const num = i + 1;
         return {
             questao: num,
-            // Captura a opção marcada ou null
             resposta: linha.querySelector(`input[name="q${num}"]:checked`)?.value || null,
-            // Garante que o valor seja um número
             valor: parseFloat(linha.querySelector('.input-valor').value) || 0
         };
     });
@@ -129,63 +107,36 @@ const salvarNoStorage = () => {
         gabarito
     };
 
-    // Recupera a lista ou cria um array vazio se não existir
-    let dadosSalvos = localStorage.getItem('prova_ifmg');
-    let lista = dadosSalvos ? JSON.parse(dadosSalvos) : [];
-    
-    // Garante que 'lista' seja sempre um Array (evita erros de versões antigas do código)
+    let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
     if (!Array.isArray(lista)) lista = [];
 
-    // Lógica de Edição vs. Novo
     if (editandoIndex > -1) {
         lista[editandoIndex] = prova;
-        // O reset do editandoIndex agora acontece dentro do limparFormulario() para ficar mais organizado
     } else {
         lista.push(prova);
     }
 
-    // Persistência
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
-    
     alert("Dados gravados com sucesso!");
-    
-    // Reset da Interface e do Estado
-    limparFormulario(); 
+    limparFormulario();
     renderizarListaProvas();
 };
-const limparFormulario = () => {
-    // Limpa os campos de texto
-    document.getElementById('titulo').value = "";
-    document.getElementById('assunto').value = "";
-    document.getElementById('data').value = "";
-    document.getElementById('qtdQuestoes').value = "";
-    
-    // Esconde a grade de questões e limpa o HTML dela
-    const areaGabarito = document.getElementById('areaGabarito');
-    const grade = document.getElementById('grade');
-    
-    if (areaGabarito) areaGabarito.classList.add('hidden');
-    if (grade) grade.innerHTML = '';
-    
-    // Garante que o estado de edição seja resetado
-    editandoIndex = -1;
-    atualizarTextoBotaoSalvar();
-};
+
 const renderizarListaProvas = () => {
     const container = document.getElementById('listaProvas');
-    const dados = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
-    const lista = Array.isArray(dados) ? dados : [dados];
+    if (!container) return;
+    const lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
 
     if (lista.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 font-italic">Nenhuma prova salva.</p>';
+        container.innerHTML = '<p class="text-gray-400 italic">Nenhuma prova salva.</p>';
         return;
     }
 
     container.innerHTML = lista.map((p, i) => `
-    <div class="flex justify-between items-center p-3 bg-gray-50 border rounded mb-2">
+    <div class="flex justify-between items-center p-3 bg-white border rounded mb-2 shadow-sm">
         <div><strong>${p.titulo}</strong> <span class="text-xs text-gray-500">(${p.gabarito.length} questões)</span></div>
         <div class="flex gap-2">
-            <button onclick="abrirModalCorrecao(${i})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors">
+            <button onclick="abrirModalCorrecao(${i})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
                 Corrigir Aluno
             </button>
             <button onclick="window.iniciarEdicao(${i})" class="text-blue-600 text-sm font-medium hover:underline">Editar</button>
@@ -195,34 +146,23 @@ const renderizarListaProvas = () => {
     `).join('');
 };
 
-/**
- * 3. LÓGICA DO MODAL E CORREÇÃO (QR CODE / RA)
- */
-window.abrirModalCorrecao = (index) => {
-    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
-    
-    if (!lista || !lista[index]) {
-        console.error("Prova não encontrada no LocalStorage");
-        return;
-    }
+// --- 4. MODAL E WEBCAM ---
 
+window.abrirModalCorrecao = async (index) => {
+    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
     indexProvaAtual = index;
     
-    // Tenta encontrar o elemento do título
     const tituloModal = document.getElementById('nomeProvaModal');
+    if (tituloModal) tituloModal.textContent = `Prova: ${lista[index].titulo}`;
     
-    // SÓ altera se ele existir
-    if (tituloModal) {
-        tituloModal.textContent = `Prova: ${lista[index].titulo}`;
-    } else {
-        // Se cair aqui, o ID no HTML ainda está errado
-        console.warn("Elemento 'nomeProvaModal' não encontrado no DOM.");
-    }
-    
-    // Tenta encontrar o modal
-    const modal = document.getElementById('modalCorrecao');
-    if (modal) {
-        modal.classList.remove('hidden');
+    document.getElementById('modalCorrecao').classList.remove('hidden');
+
+    try {
+        streamWebcam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const videoArea = document.getElementById('webcam');
+        if (videoArea) videoArea.srcObject = streamWebcam;
+    } catch (err) {
+        console.warn("Câmera não disponível ou permissão negada.");
     }
 
     setTimeout(() => {
@@ -232,91 +172,74 @@ window.abrirModalCorrecao = (index) => {
 };
 
 window.fecharModal = () => {
+    if (streamWebcam) {
+        streamWebcam.getTracks().forEach(track => track.stop());
+    }
     document.getElementById('modalCorrecao').classList.add('hidden');
     indexProvaAtual = -1;
     document.getElementById('raAluno').value = "";
     document.getElementById('campoLeitor').value = "";
-    document.getElementById('resultadoRapido').classList.add('hidden');
 };
 
-const processarAvaliacao = () => {
-    if (indexProvaAtual === -1) return;
+// --- 5. INICIALIZAÇÃO ---
 
-    const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
-    const provaMestre = lista[indexProvaAtual];
+document.addEventListener('DOMContentLoaded', () => {
+    // Botão Gerar Grade
+    document.getElementById('gerarGrade').onclick = () => {
+        editandoIndex = -1;
+        atualizarTextoBotaoSalvar();
+        
+        const grade = document.getElementById('grade');
+        grade.innerHTML = '';
+        
+        const qtd = parseInt(document.getElementById('qtdQuestoes').value) || 0;
+        const valorTotal = parseFloat(document.getElementById('valorTotalProva').value) || 0;
+        const valorCada = qtd > 0 ? (valorTotal / qtd).toFixed(2) : 0;
 
-    const ra = document.getElementById('raAluno').value;
-    const dadosQR = document.getElementById('campoLeitor').value;
+        if (qtd <= 0) return alert("Informe a quantidade de questões.");
 
-    if (!ra || !dadosQR) {
-        alert("Preencha o RA e use o leitor no campo de QR Code.");
-        return;
-    }
-
-    const respostasAluno = dadosQR.split(""); 
-    let acertos = 0;
-    let notaFinal = 0;
-
-    provaMestre.gabarito.forEach((qMestre, i) => {
-        const respAluno = respostasAluno[i] || "Vazio"; 
-        if (respAluno === qMestre.resposta) {
-            acertos++;
-            notaFinal += qMestre.valor;
+        for (let i = 1; i <= qtd; i++) {
+            grade.appendChild(criarLinhaQuestao(i, { valor: valorCada }));
         }
-    });
+        document.getElementById('areaGabarito').classList.remove('hidden');
+    };
 
-    // Mostrar Resultado no Modal
-    const areaResult = document.getElementById('resultadoRapido');
-    areaResult.innerHTML = `<p class="text-green-800 font-bold text-lg">Nota do Aluno (RA ${ra}): ${notaFinal.toFixed(2)}</p>`;
-    areaResult.classList.remove('hidden');
+    // Botão Salvar
+    document.getElementById('salvarProva').onclick = salvarNoStorage;
 
-    // Limpar para o próximo
-    document.getElementById('raAluno').value = "";
-    document.getElementById('campoLeitor').value = "";
-    document.getElementById('raAluno').focus();
-};
+    // Botão Inserir Avulsa
+    document.getElementById('inserirQuestao').onclick = () => {
+        const grade = document.getElementById('grade');
+        const novoNum = grade.children.length + 1;
+        grade.appendChild(criarLinhaQuestao(novoNum));
+        document.getElementById('qtdQuestoes').value = novoNum;
+    };
 
-/**
- * 4. EVENTOS GLOBAIS E INICIALIZAÇÃO
- */
+    renderizarListaProvas();
+});
+
 window.iniciarEdicao = (index) => {
     const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
     const prova = lista[index];
     editandoIndex = index;
+    
     document.getElementById('titulo').value = prova.titulo;
     document.getElementById('assunto').value = prova.assunto;
     document.getElementById('data').value = prova.data;
-    gerarGradeInicial(prova.gabarito);
+    
+    const grade = document.getElementById('grade');
+    grade.innerHTML = '';
+    prova.gabarito.forEach((q, i) => grade.appendChild(criarLinhaQuestao(i + 1, q)));
+    
+    document.getElementById('areaGabarito').classList.remove('hidden');
     atualizarTextoBotaoSalvar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.excluirRegistro = (index) => {
-    if (!confirm("Excluir esta prova permanentemente?")) return;
+    if (!confirm("Excluir permanentemente?")) return;
     let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
     lista.splice(index, 1);
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
     renderizarListaProvas();
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('gerarGrade').onclick = () => { 
-        editandoIndex = -1; 
-        atualizarTextoBotaoSalvar();
-        gerarGradeInicial(); 
-    };
-
-    document.getElementById('salvarProva').onclick = salvarNoStorage;
-    document.getElementById('inserirQuestao').onclick = adicionarQuestaoAvulsa;
-    
-    // Liga o botão do Modal à função de processar
-    const btnConfirmar = document.getElementById('btnConfirmarCorrecao');
-    if (btnConfirmar) btnConfirmar.onclick = processarAvaliacao;
-
-    // Detecta "Enter" no campo do leitor para disparar a correção automaticamente
-    document.getElementById('campoLeitor').onkeypress = (e) => {
-        if (e.key === 'Enter') processarAvaliacao();
-    };
-
-    renderizarListaProvas();
-});
