@@ -125,10 +125,18 @@
                 </button>
             </div>
         </div>
+        <div>
+    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Log de Extração (OCR)</label>
+    <div class="w-full bg-gray-900 rounded-lg p-3 overflow-hidden border-2 border-gray-700">
+        <!-- O PRE para ver a leitura real -->
+        <pre id="outputOCR" class="text-green-400 text-[10px] font-mono h-24 overflow-y-auto whitespace-pre-wrap">Aguardando processamento...</pre>
+    </div>
+</div>
     </div>
 
     </div>
     <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <script async src="https://opencv.org" type="text/javascript"></script>
     <script src="script.js"></script>
 
