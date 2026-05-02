@@ -191,105 +191,103 @@ window.excluirRegistro = (index) => {
     renderizarListaProvas();
 };
 
-// --- 6. MOTOR DE PROCESSAMENTO DE IMAGEM ---
+// --- 6. MOTOR DE PROCESSAMENTO DE IMAGEM (REESCRITO PARA CANVAS) ---
 
 const processarGabarito = () => {
     const video = document.getElementById('videoScan');
-    const canvas = document.createElement('canvas');
+    const canvas = document.getElementById('canvasPreview');
+    const campoLeitor = document.getElementById('campoLeitor');
+    const msg = document.getElementById('msgSucesso');
     const ctx = canvas.getContext('2d');
 
-    // Define o tamanho do canvas igual ao vídeo para não perder resolução
+    // 1. "Bate a foto": Congela o frame atual do vídeo no canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
-    // Desenha o frame atual do vídeo no canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    try {
-        // Lógica com OpenCV para tratar a imagem
-        let src = cv.imread(canvas);
-        let dst = new cv.Mat();
-        
-        // 1. Tons de cinza e Threshold (Deixa a caneta preta e o papel branco)
-        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
-        cv.threshold(dst, dst, 120, 255, cv.THRESH_BINARY_INV); // Inverte para contar pixels brancos
+    // Feedback visual: Esconde vídeo e mostra a foto tirada
+    video.classList.add('hidden');
+    canvas.classList.remove('hidden');
 
-        // 2. Pegar os dados da prova atual
-        const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
-        const provaAtual = lista[indexProvaAtual];
-        const numQuestoes = provaAtual.gabarito.length;
-
-        // 3. Simulação de grade (Divisão lógica da imagem)
-        // O ideal é que o usuário alinhe a tabela no retângulo guia do modal
-        const alturaQuestao = canvas.height / numQuestoes;
-        const larguraOpcao = canvas.width / 5; // A, B, C, D, E
-        
-        let respostasDetectadas = [];
-
-        // Varredura por região (ROI - Region of Interest)
-        for (let i = 0; i < numQuestoes; i++) {
-            let maiorDensidade = 0;
-            let letraEscolhida = "?";
-
-            ['A', 'B', 'C', 'D', 'E'].forEach((letra, idx) => {
-                const x = idx * larguraOpcao;
-                const y = i * alturaQuestao;
-                
-                // Calcula densidade de pixels no quadradinho da opção
-                const densidade = calcularDensidadeOpcao(ctx, x, y, larguraOpcao, alturaQuestao);
-                
-                if (densidade > maiorDensidade) {
-                    maiorDensidade = densidade;
-                    letraEscolhida = letra;
-                }
-            });
-            respostasDetectadas.push(letraEscolhida);
-        }
-
-        // Limpeza de memória do OpenCV
-        src.delete(); dst.delete();
-        
-        exibirResultadoFinal(respostasDetectadas, provaAtual.gabarito);
-
-    } catch (err) {
-        console.error("Erro no processamento:", err);
-        alert("Aguarde o carregamento do OpenCV ou melhore a iluminação.");
-    }
-};
-
-const calcularDensidadeOpcao = (ctx, x, y, w, h) => {
-    const data = ctx.getImageData(x, y, w, h).data;
-    let pixelsEscuros = 0;
-    // Pula de 4 em 4 (RGBA)
-    for (let i = 0; i < data.length; i += 4) {
-        // Se a média RGB for baixa, o pixel é "escuro" (marcação da caneta)
-        if (data[i] < 100 && data[i+1] < 100 && data[i+2] < 100) {
-            pixelsEscuros++;
-        }
-    }
-    return pixelsEscuros;
-};
-
-const exibirResultadoFinal = (detectadas, oficial) => {
-    let acertos = 0;
-    let nota = 0;
+    // 2. Prepara o OpenCV para ler o Canvas
+    let src = cv.imread(canvas);
+    let gray = new cv.Mat();
+    let thresh = new cv.Mat();
     
-    detectadas.forEach((resp, i) => {
-        if (resp === oficial[i].resposta) {
-            acertos++;
-            nota += oficial[i].valor;
-        }
-    });
+    // 3. Pré-processamento (Cinza + Filtro para ignorar sombras e brilho)
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+    cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
 
-    const resultadoDiv = document.getElementById('resultadoRapido');
-    resultadoDiv.classList.remove('hidden');
-    resultadoDiv.innerHTML = `
-        <p class="text-lg font-bold text-green-700">Correção Finalizada!</p>
-        <p>Acertos: ${acertos} de ${oficial.length}</p>
-        <p class="text-2xl font-black">Nota: ${nota.toFixed(2)}</p>
-    `;
-    document.getElementById('campoLeitor').value = detectadas.join(', ');
+    // 4. Localiza a maior forma retangular (o Gabarito)
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    let maiorContorno = null;
+    let maxArea = 0;
+    for (let i = 0; i < contours.size(); ++i) {
+        let cnt = contours.get(i);
+        let area = cv.contourArea(cnt);
+        if (area > maxArea) { maxArea = area; maiorContorno = cnt; }
+    }
+
+    if (maiorContorno && maxArea > 10000) {
+        let rect = cv.boundingRect(maiorContorno);
+        let roi = thresh.roi(rect); 
+
+        // Puxa informações da prova atual para saber quantas questões ler
+        const lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
+        const provaAtiva = lista[indexProvaAtual];
+        const numQ = provaAtiva.gabarito.length;
+        
+        let lidas = [];
+        let notaFinal = 0;
+        const colunas = ['A', 'B', 'C', 'D', 'E'];
+
+        // 5. Varredura matemática da grade
+        for (let q = 0; q < numQ; q++) {
+            let melhor = "?";
+            let maxPreto = 0;
+
+            for (let c = 0; c < 5; c++) {
+                let cellW = roi.cols / 5;
+                let cellH = roi.rows / numQ;
+                let cellRect = new cv.Rect(cellW * c, cellH * q, cellW, cellH);
+                let cell = roi.roi(cellRect);
+                
+                let contagem = cv.countNonZero(cell);
+                // Se a bolinha tiver mais que 15% de preenchimento, é um "X"
+                if (contagem > maxPreto && contagem > (cellW * cellH * 0.15)) {
+                    maxPreto = contagem;
+                    melhor = colunas[c];
+                }
+                cell.delete();
+            }
+            lidas.push(melhor);
+
+            // 6. Comparação com o gabarito salvo
+            if (melhor === provaAtiva.gabarito[q].resposta) {
+                notaFinal += provaAtiva.gabarito[q].valor;
+            }
+        }
+
+        // Exibe o resultado e a nota
+        campoLeitor.value = lidas.join(" ");
+        msg.innerHTML = `✅ Correção Concluída! Nota: <b>${notaFinal.toFixed(2)}</b>`;
+        document.getElementById('resultadoRapido').classList.remove('hidden');
+        
+        roi.delete();
+    } else {
+        alert("Não foi possível detectar o gabarito. Alinhe o papel na guia verde.");
+        // Volta para o vídeo se falhar
+        video.classList.remove('hidden');
+        canvas.classList.add('hidden');
+    }
+
+    // Limpeza de memória
+    src.delete(); gray.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
 };
 
-// Vincula ao botão do seu HTML
+// Vincula ao botão
 document.getElementById('btnConfirmarCorrecao').onclick = processarGabarito;
+
