@@ -64,18 +64,30 @@ const renumerarQuestoes = () => {
     document.getElementById('qtdQuestoes').value = linhas.length;
 };
 
-const gerarGradeInicial = (dadosGabarito = null) => {
+document.getElementById('gerarGrade').onclick = () => {
+    editandoIndex = -1;
+    atualizarTextoBotaoSalvar();
+    
     const grade = document.getElementById('grade');
-    const areaGabarito = document.getElementById('areaGabarito');
-    grade.innerHTML = ''; 
+    grade.innerHTML = '';
+    
+    const qtd = parseInt(document.getElementById('qtdQuestoes').value) || 0;
+    const valorTotal = parseFloat(document.getElementById('valorTotalProva').value) || 0;
+    
+    // Cálculo do valor individual
+    const valorCada = qtd > 0 ? (valorTotal / qtd).toFixed(2) : 0;
 
-    if (dadosGabarito) {
-        dadosGabarito.forEach((q, i) => grade.appendChild(criarLinhaQuestao(i + 1, q)));
-    } else {
-        const qtd = parseInt(document.getElementById('qtdQuestoes').value) || 0;
-        for (let i = 1; i <= qtd; i++) grade.appendChild(criarLinhaQuestao(i));
+    if (qtd <= 0) {
+        alert("Informe a quantidade de questões.");
+        return;
     }
-    areaGabarito.classList.remove('hidden');
+
+    for (let i = 1; i <= qtd; i++) {
+        // Passamos o valor calculado para a função que cria a linha
+        grade.appendChild(criarLinhaQuestao(i, { valor: valorCada }));
+    }
+    
+    document.getElementById('areaGabarito').classList.remove('hidden');
 };
 
 const adicionarQuestaoAvulsa = () => {
