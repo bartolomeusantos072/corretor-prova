@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 // --- ESTADOS GLOBAIS ---
-=======
-// --- VARIÁVEIS DE ESTADO ---
->>>>>>> a14e38b58bb2bd594390cae4f5ac061ae177d6d0
 let editandoIndex = -1;
 let indexProvaAtual = -1;
 let streamWebcam = null;
