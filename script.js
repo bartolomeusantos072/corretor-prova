@@ -1,6 +1,20 @@
 let editandoIndex = -1;
 let indexProvaAtual = -1; // Para o Modal de Correção
 
+const atualizarTextoBotaoSalvar = () => {
+    const btnSalvar = document.getElementById('salvarProva');
+    if (!btnSalvar) return; // Segurança contra null
+
+    if (editandoIndex > -1) {
+        btnSalvar.textContent = "Salvar Alterações";
+        btnSalvar.classList.remove('bg-blue-600');
+        btnSalvar.classList.add('bg-amber-600');
+    } else {
+        btnSalvar.textContent = "Salvar Gabarito";
+        btnSalvar.classList.remove('bg-amber-600');
+        btnSalvar.classList.add('bg-blue-600');
+    }
+};
 /**
  * 1. MANIPULAÇÃO DA GRADE DE QUESTÕES
  */
@@ -77,7 +91,9 @@ const adicionarQuestaoAvulsa = () => {
  */
 const salvarNoStorage = () => {
     const tituloInput = document.getElementById('titulo');
-    if (!tituloInput.value.trim()) {
+    
+    // Validação inicial
+    if (!tituloInput || !tituloInput.value.trim()) {
         alert("Por favor, dê um título à prova.");
         return;
     }
@@ -87,7 +103,9 @@ const salvarNoStorage = () => {
         const num = i + 1;
         return {
             questao: num,
+            // Captura a opção marcada ou null
             resposta: linha.querySelector(`input[name="q${num}"]:checked`)?.value || null,
+            // Garante que o valor seja um número
             valor: parseFloat(linha.querySelector('.input-valor').value) || 0
         };
     });
@@ -99,21 +117,48 @@ const salvarNoStorage = () => {
         gabarito
     };
 
-    let lista = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
-    if (!Array.isArray(lista)) lista = [lista];
+    // Recupera a lista ou cria um array vazio se não existir
+    let dadosSalvos = localStorage.getItem('prova_ifmg');
+    let lista = dadosSalvos ? JSON.parse(dadosSalvos) : [];
+    
+    // Garante que 'lista' seja sempre um Array (evita erros de versões antigas do código)
+    if (!Array.isArray(lista)) lista = [];
 
+    // Lógica de Edição vs. Novo
     if (editandoIndex > -1) {
         lista[editandoIndex] = prova;
-        editandoIndex = -1;
+        // O reset do editandoIndex agora acontece dentro do limparFormulario() para ficar mais organizado
     } else {
         lista.push(prova);
     }
 
+    // Persistência
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
-    alert("Salvo com sucesso!");
+    
+    alert("Dados gravados com sucesso!");
+    
+    // Reset da Interface e do Estado
+    limparFormulario(); 
     renderizarListaProvas();
 };
-
+const limparFormulario = () => {
+    // Limpa os campos de texto
+    document.getElementById('titulo').value = "";
+    document.getElementById('assunto').value = "";
+    document.getElementById('data').value = "";
+    document.getElementById('qtdQuestoes').value = "";
+    
+    // Esconde a grade de questões e limpa o HTML dela
+    const areaGabarito = document.getElementById('areaGabarito');
+    const grade = document.getElementById('grade');
+    
+    if (areaGabarito) areaGabarito.classList.add('hidden');
+    if (grade) grade.innerHTML = '';
+    
+    // Garante que o estado de edição seja resetado
+    editandoIndex = -1;
+    atualizarTextoBotaoSalvar();
+};
 const renderizarListaProvas = () => {
     const container = document.getElementById('listaProvas');
     const dados = JSON.parse(localStorage.getItem('prova_ifmg') || '[]');
@@ -145,9 +190,12 @@ window.abrirModalCorrecao = (index) => {
     const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
     indexProvaAtual = index;
     
-    document.getElementById('nomeProvaModal').textContent = `Prova: ${lista[index].titulo}`;
-    document.getElementById('modalCorrecao').classList.remove('hidden');
+    const elementoTitulo = document.getElementById('nomeProvaModal');
+    if (elementoTitulo) {
+        elementoTitulo.textContent = `Prova: ${lista[index].titulo}`;
+    }
     
+    document.getElementById('modalCorrecao').classList.remove('hidden');
     setTimeout(() => document.getElementById('raAluno').focus(), 100);
 };
 
@@ -207,6 +255,7 @@ window.iniciarEdicao = (index) => {
     document.getElementById('assunto').value = prova.assunto;
     document.getElementById('data').value = prova.data;
     gerarGradeInicial(prova.gabarito);
+    atualizarTextoBotaoSalvar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -221,6 +270,7 @@ window.excluirRegistro = (index) => {
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gerarGrade').onclick = () => { 
         editandoIndex = -1; 
+        atualizarTextoBotaoSalvar();
         gerarGradeInicial(); 
     };
 
