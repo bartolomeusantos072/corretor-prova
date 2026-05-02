@@ -188,15 +188,35 @@ const renderizarListaProvas = () => {
  */
 window.abrirModalCorrecao = (index) => {
     const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
+    
+    if (!lista || !lista[index]) {
+        console.error("Prova não encontrada no LocalStorage");
+        return;
+    }
+
     indexProvaAtual = index;
     
-    const elementoTitulo = document.getElementById('nomeProvaModal');
-    if (elementoTitulo) {
-        elementoTitulo.textContent = `Prova: ${lista[index].titulo}`;
+    // Tenta encontrar o elemento do título
+    const tituloModal = document.getElementById('nomeProvaModal');
+    
+    // SÓ altera se ele existir
+    if (tituloModal) {
+        tituloModal.textContent = `Prova: ${lista[index].titulo}`;
+    } else {
+        // Se cair aqui, o ID no HTML ainda está errado
+        console.warn("Elemento 'nomeProvaModal' não encontrado no DOM.");
     }
     
-    document.getElementById('modalCorrecao').classList.remove('hidden');
-    setTimeout(() => document.getElementById('raAluno').focus(), 100);
+    // Tenta encontrar o modal
+    const modal = document.getElementById('modalCorrecao');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+
+    setTimeout(() => {
+        const raInput = document.getElementById('raAluno');
+        if (raInput) raInput.focus();
+    }, 100);
 };
 
 window.fecharModal = () => {
