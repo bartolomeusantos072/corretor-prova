@@ -190,3 +190,106 @@ window.excluirRegistro = (index) => {
     localStorage.setItem('prova_ifmg', JSON.stringify(lista));
     renderizarListaProvas();
 };
+
+// --- 6. MOTOR DE PROCESSAMENTO DE IMAGEM ---
+
+const processarGabarito = () => {
+    const video = document.getElementById('videoScan');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Define o tamanho do canvas igual ao vídeo para não perder resolução
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Desenha o frame atual do vídeo no canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    try {
+        // Lógica com OpenCV para tratar a imagem
+        let src = cv.imread(canvas);
+        let dst = new cv.Mat();
+        
+        // 1. Tons de cinza e Threshold (Deixa a caneta preta e o papel branco)
+        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
+        cv.threshold(dst, dst, 120, 255, cv.THRESH_BINARY_INV); // Inverte para contar pixels brancos
+
+        // 2. Pegar os dados da prova atual
+        const lista = JSON.parse(localStorage.getItem('prova_ifmg'));
+        const provaAtual = lista[indexProvaAtual];
+        const numQuestoes = provaAtual.gabarito.length;
+
+        // 3. Simulação de grade (Divisão lógica da imagem)
+        // O ideal é que o usuário alinhe a tabela no retângulo guia do modal
+        const alturaQuestao = canvas.height / numQuestoes;
+        const larguraOpcao = canvas.width / 5; // A, B, C, D, E
+        
+        let respostasDetectadas = [];
+
+        // Varredura por região (ROI - Region of Interest)
+        for (let i = 0; i < numQuestoes; i++) {
+            let maiorDensidade = 0;
+            let letraEscolhida = "?";
+
+            ['A', 'B', 'C', 'D', 'E'].forEach((letra, idx) => {
+                const x = idx * larguraOpcao;
+                const y = i * alturaQuestao;
+                
+                // Calcula densidade de pixels no quadradinho da opção
+                const densidade = calcularDensidadeOpcao(ctx, x, y, larguraOpcao, alturaQuestao);
+                
+                if (densidade > maiorDensidade) {
+                    maiorDensidade = densidade;
+                    letraEscolhida = letra;
+                }
+            });
+            respostasDetectadas.push(letraEscolhida);
+        }
+
+        // Limpeza de memória do OpenCV
+        src.delete(); dst.delete();
+        
+        exibirResultadoFinal(respostasDetectadas, provaAtual.gabarito);
+
+    } catch (err) {
+        console.error("Erro no processamento:", err);
+        alert("Aguarde o carregamento do OpenCV ou melhore a iluminação.");
+    }
+};
+
+const calcularDensidadeOpcao = (ctx, x, y, w, h) => {
+    const data = ctx.getImageData(x, y, w, h).data;
+    let pixelsEscuros = 0;
+    // Pula de 4 em 4 (RGBA)
+    for (let i = 0; i < data.length; i += 4) {
+        // Se a média RGB for baixa, o pixel é "escuro" (marcação da caneta)
+        if (data[i] < 100 && data[i+1] < 100 && data[i+2] < 100) {
+            pixelsEscuros++;
+        }
+    }
+    return pixelsEscuros;
+};
+
+const exibirResultadoFinal = (detectadas, oficial) => {
+    let acertos = 0;
+    let nota = 0;
+    
+    detectadas.forEach((resp, i) => {
+        if (resp === oficial[i].resposta) {
+            acertos++;
+            nota += oficial[i].valor;
+        }
+    });
+
+    const resultadoDiv = document.getElementById('resultadoRapido');
+    resultadoDiv.classList.remove('hidden');
+    resultadoDiv.innerHTML = `
+        <p class="text-lg font-bold text-green-700">Correção Finalizada!</p>
+        <p>Acertos: ${acertos} de ${oficial.length}</p>
+        <p class="text-2xl font-black">Nota: ${nota.toFixed(2)}</p>
+    `;
+    document.getElementById('campoLeitor').value = detectadas.join(', ');
+};
+
+// Vincula ao botão do seu HTML
+document.getElementById('btnConfirmarCorrecao').onclick = processarGabarito;
